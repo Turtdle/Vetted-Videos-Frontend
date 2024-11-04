@@ -88,12 +88,13 @@ class State(rx.State):
             collection_name = "user_videos"
             db = client[db_name]
             collection = db[collection_name]
+            form_data['tags'] = form_data['tags'].split(',')
             result = collection.insert_one(form_data)
             print(f"\nDocument successfully inserted with ID: {result.inserted_id}")
-            return True
-            
+            return rx.toast.success(f'Document successfully inserted with ID: {result.inserted_id}')
         except Exception as e:
             print(f"Error inserting document: {e}")
+            return rx.toast.error(f"Error inserting document: {e}")
             return False
     @rx.var(cache=True)
     def protected_content(self) -> rx.Component:

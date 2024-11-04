@@ -55,20 +55,23 @@ def require_google_login(page) -> rx.Component:
 
 
 def index():
-    return rx.vstack(
-        rx.heading("Google OAuth", size="lg"),
-        rx.link("Protected Page", href="/protected"),
+    return rx.center(
+        rx.vstack(
+        rx.heading("Vetted Videos", size="lg"),
+        rx.link("Go To Login", href="/protected"),
+    )
     )
 
 
 @rx.page(route="/protected")
 @require_google_login
 def protected() -> rx.Component:
-    return rx.vstack(
+    return rx.center(rx.vstack(
         user_info(State.tokeninfo),
+        rx.center(rx.vstack(
         rx.vstack(State.protected_content),
-        rx.link("Back", href="/"),
-    )
+        rx.link("Back", href="/"),))
+    ))
 
 
 app = rx.App()

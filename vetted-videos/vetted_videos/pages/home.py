@@ -6,11 +6,12 @@ def home() -> rx.Component:
         State.token_is_valid,
         rx.dialog.root(
         rx.dialog.trigger(
+            rx.center(
             rx.button(
                 rx.icon("plus", size=26),
                 rx.text("Add Video", size="4", display=["none", "none", "block"]),
                 size="3",
-            ),
+            )),
         ),
         rx.dialog.content(
             rx.hstack(
@@ -80,6 +81,12 @@ def home() -> rx.Component:
                             "Link",
                             "text",
                             "link",
+                            "box",
+                        ),form_field(
+                            "Tags",
+                            "Seperate tags by commas",
+                            "text",
+                            "tags",
                             "box",
                         ),
                         spacing="3",
