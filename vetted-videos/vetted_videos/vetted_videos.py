@@ -14,8 +14,6 @@ from .react_oauth_google import (
     GoogleLogin,
 )
 
-
-
 def user_info(tokeninfo: dict) -> rx.Component:
     return rx.hstack(
         rx.avatar(
@@ -69,7 +67,7 @@ def protected() -> rx.Component:
     return rx.vstack(
         user_info(State.tokeninfo),
         rx.vstack(State.protected_content),
-        rx.link("Home", href="/"),
+        rx.link("Back", href="/"),
     )
 
 
