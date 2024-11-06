@@ -2,7 +2,7 @@ import functools
 import json
 import os
 import time
-from typing import TypedDict
+from typing import TypedDict, List
 
 from google.auth.transport import requests
 from google.oauth2.id_token import verify_oauth2_token
@@ -23,6 +23,7 @@ class VideoData(TypedDict):
     link : str
     videoname : str
     tags : list
+
 def connect_to_mongodb():
     """Connect to MongoDB cluster using connection string."""
     try:
@@ -37,7 +38,57 @@ def connect_to_mongodb():
         print(f"Error connecting to MongoDB: {e}")
         return None
 
+def get_mongo_entries(
+    client: MongoClient,
+    database_name: str,
+    collection_name: str,
+) -> List[VideoData]:
+    """
+    Retrieves all entries from a MongoDB collection and converts them to VideoData format.
+    
+    Args:
+        client (MongoClient): Initialized MongoDB client instance
+        database_name (str): Name of the database
+        collection_name (str): Name of the collection
+        
+    Returns:
+        List[VideoData]: List of documents converted to VideoData TypedDict
+        
+    Raises:
+        Exception: If there are issues with data conversion or missing required fields
+    """
+    try:
+        db = client[database_name]
+        collection = db[collection_name]
+        documents = list(collection.find())
+        video_data_list: List[VideoData] = []
+        
+        for doc in documents:
+            try:
+                video_data: VideoData = {
+                    'username': str(doc.get('username', '')),
+                    'length': str(doc.get('length', '')),
+                    'thumbnail': str(doc.get('thumbnail', '')),
+                    'product': str(doc.get('product', '')),
+                    'link': str(doc.get('link', '')),
+                    'videoname': str(doc.get('videoname', '')),
+                    'tags': list(doc.get('tags', []))
+                }
+                video_data_list.append(video_data)
+                
+            except (KeyError, TypeError, ValueError) as e:
+                print(f"Error processing document {doc.get('_id', 'unknown')}: {str(e)}")
+                continue
+        
+        print(f"Successfully processed {len(video_data_list)} documents")
+        return video_data_list
+        
+    except Exception as e:
+        print(f"Error: {str(e)}")
+        raise
+
 class State(rx.State):
+    videos: List[VideoData] = []
     CLIENT_ID = ""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -46,7 +97,8 @@ class State(rx.State):
         if os.path.exists(client_id_path):
             with open(client_id_path) as f:
                 self.CLIENT_ID = f.read().strip()
-        
+        self.videos = get_mongo_entries(client=connect_to_mongodb(), database_name='Landing', collection_name='user_videos')
+        print(f'videos: {self.videos}')
     id_token_json: str = rx.LocalStorage()
 
     def on_success(self, id_token: dict):
