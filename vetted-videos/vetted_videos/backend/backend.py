@@ -23,6 +23,7 @@ class VideoData(TypedDict):
     link : str
     videoname : str
     tags : list
+    docid : str = ""
 
 def connect_to_mongodb():
     """Connect to MongoDB cluster using connection string."""
@@ -72,7 +73,8 @@ def get_mongo_entries(
                     'product': str(doc.get('product', '')),
                     'link': str(doc.get('link', '')),
                     'videoname': str(doc.get('videoname', '')),
-                    'tags': list(doc.get('tags', []))
+                    'tags': list(doc.get('tags', [])),
+                    'docid' : str(doc['_id'])
                 }
                 video_data_list.append(video_data)
                 
@@ -97,9 +99,11 @@ class State(rx.State):
         if os.path.exists(client_id_path):
             with open(client_id_path) as f:
                 self.CLIENT_ID = f.read().strip()
-        self.videos = get_mongo_entries(client=connect_to_mongodb(), database_name='Landing', collection_name='user_videos')
-        print(f'videos: {self.videos}')
+        self.update_video_list()
     id_token_json: str = rx.LocalStorage()
+
+    def update_video_list(self):
+        self.videos = get_mongo_entries(client=connect_to_mongodb(), database_name='Landing', collection_name='user_videos')
 
     def on_success(self, id_token: dict):
         self.id_token_json = json.dumps(id_token)
@@ -143,11 +147,37 @@ class State(rx.State):
             form_data['tags'] = form_data['tags'].split(',')
             result = collection.insert_one(form_data)
             print(f"\nDocument successfully inserted with ID: {result.inserted_id}")
+            self.update_video_list()
             return rx.toast.success(f'Document successfully inserted with ID: {result.inserted_id}')
         except Exception as e:
             print(f"Error inserting document: {e}")
             return rx.toast.error(f"Error inserting document: {e}")
             return False
+    
+    def update_item(self, form_data : VideoData):
+        ### TODO
+        client = connect_to_mongodb()
+        try:
+            db_name = "Landing"
+            collection_name = "user_videos"
+            db = client[db_name]
+            collection = db[collection_name]
+        except:
+            pass
+
+    def delete_item(self, video : VideoData):
+        try:
+            client = connect_to_mongodb()
+            db_name = "Landing"
+            collection_name = "user_videos"
+            db = client[db_name]
+            collection = db[collection_name]
+            result = collection.delete_one({'link' : video['link']})
+            self.update_video_list()
+            return rx.toast.success(f'Successfully deleted video with name: {video['videoname']}', position = "bottom-left")
+        except Exception as e:
+            return rx.toast.error(f"Failed to delete, please contact website admin; error: {e}")
+    
     @rx.var(cache=True)
     def protected_content(self) -> rx.Component:
         if self.token_is_valid:

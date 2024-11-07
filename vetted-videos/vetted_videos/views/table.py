@@ -13,9 +13,7 @@ def _header_cell(text: str, icon: str):
     )
 
 def _add_item_button() -> rx.Component:
-    return rx.cond(
-        State.token_is_valid,
-        rx.box(
+    return rx.box(
         rx.dialog.root(
         rx.dialog.trigger(
             rx.center(
@@ -137,15 +135,15 @@ def _add_item_button() -> rx.Component:
             border=f"2.5px solid {rx.color('accent', 7)}",
             border_radius="25px",
         ),
-    )),
-        rx.text(f"Please Login")
-    )
+    ),
+        )
 
 def _show_item(item: VideoData):
     return rx.table.row(
         rx.table.cell(item["videoname"]),
         rx.table.cell(item["username"]),
         rx.table.cell(item["product"]),
+        #rx.table.cell(item["docid"]),
         rx.table.cell(
             rx.hstack(
                 rx.icon_button(
@@ -153,7 +151,7 @@ def _show_item(item: VideoData):
                     color_scheme="red",
                     size="2",
                     variant="solid",
-                    #on_click=lambda: State.delete_item(item),
+                    on_click=lambda: State.delete_item(item),
                 ),
                 spacing="2",
             )
@@ -210,7 +208,9 @@ def main_table():
                     _header_cell("Video Name", "box"),
                     _header_cell("Username", "box"),
                     _header_cell("Product Name", "box"),
+                    #_header_cell("Doc ID", "box"),
                     _header_cell("Actions", "cog"),
+                    
                 ),
             ),
             rx.table.body(rx.foreach(State.videos, _show_item)),
