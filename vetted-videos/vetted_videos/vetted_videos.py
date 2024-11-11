@@ -41,13 +41,13 @@ def require_google_login(page) -> rx.Component:
     @functools.wraps(page)
     def _auth_wrapper() -> rx.Component:
         return GoogleOAuthProvider.create(
-            rx.cond(
+            rx.center(rx.cond(
                 State.is_hydrated,
                 rx.cond(
                     State.token_is_valid, page(), login()
                 ),
                 rx.spinner(),
-            ),
+            )),
             client_id=State.CLIENT_ID,
         )
 
@@ -57,21 +57,26 @@ def require_google_login(page) -> rx.Component:
 def index():
     return rx.center(
         rx.vstack(
-        rx.heading("Vetted Videos", size="lg"),
-        rx.link("Go To Login", href="/protected"),
-    )
+            rx.heading("Vetted Videos", size="lg"),
+            rx.link("Go To Login", href="/protected"),
+        )
     )
 
 
 @rx.page(route="/protected")
 @require_google_login
 def protected() -> rx.Component:
-    return rx.center(rx.vstack(
-        user_info(State.tokeninfo),
-        rx.center(rx.vstack(
-        rx.vstack(State.protected_content),
-        rx.link("Back", href="/"),))
-    ))
+    return rx.center(
+        rx.vstack(
+            user_info(State.tokeninfo),
+            rx.center(
+                    rx.vstack(
+                        rx.vstack(State.protected_content),
+                        rx.link("Back", href="/"),
+                )
+            )
+        )
+    )
 
 
 app = rx.App()

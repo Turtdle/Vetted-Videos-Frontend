@@ -92,6 +92,7 @@ def get_mongo_entries(
 class State(rx.State):
     videos: List[VideoData] = []
     CLIENT_ID = ""
+    video_to_update : VideoData = VideoData()
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.CLIENT_ID = ""
@@ -100,13 +101,20 @@ class State(rx.State):
             with open(client_id_path) as f:
                 self.CLIENT_ID = f.read().strip()
         self.update_video_list()
+        
     id_token_json: str = rx.LocalStorage()
+
+    def get_video_to_update(self):
+        return self.video_to_update
 
     def update_video_list(self):
         self.videos = get_mongo_entries(client=connect_to_mongodb(), database_name='Landing', collection_name='user_videos')
 
     def on_success(self, id_token: dict):
         self.id_token_json = json.dumps(id_token)
+    
+    def set_video_to_update(self, video : VideoData):
+        self.video_to_update = video
 
     @rx.var(cache=True)
     def tokeninfo(self) -> dict[str, str]:
@@ -133,6 +141,7 @@ class State(rx.State):
                 self.tokeninfo
                 and int(self.tokeninfo.get("exp", 0))
                 > time.time()
+                and self.tokeninfo.get("email") == "sam@wanfamily.org"
             )
         except Exception:
             return False
@@ -154,16 +163,67 @@ class State(rx.State):
             return rx.toast.error(f"Error inserting document: {e}")
             return False
     
-    def update_item(self, form_data : VideoData):
-        ### TODO
+    def update_item(self, form_data: VideoData):
+        """
+        Updates a video document in MongoDB based on the provided VideoData.
+        
+        Args:
+            form_data (VideoData): The video data to update
+            
+        Returns:
+            dict: Result of the update operation containing success status and message
+        """
         client = connect_to_mongodb()
         try:
             db_name = "Landing"
             collection_name = "user_videos"
             db = client[db_name]
             collection = db[collection_name]
-        except:
-            pass
+
+            filter_query = {"_id": form_data.id}
+
+            update_data = {
+                "$set": {
+                    "title": form_data.title,
+                    "description": form_data.description,
+                    "url": form_data.url,
+                    "category": form_data.category,
+                    "tags": form_data.tags,
+                    "updated_at": datetime.utcnow()
+                }
+            }
+
+            result = collection.update_one(
+                filter=filter_query,
+                update=update_data
+            )
+
+            if result.matched_count == 0:
+                return {
+                    "success": False,
+                    "message": f"No video found with id {form_data.id}"
+                }
+
+            if result.modified_count == 0:
+                return {
+                    "success": True,
+                    "message": "Document found but no changes were needed"
+                }
+
+            return {
+                "success": True,
+                "message": f"Successfully updated video with id {form_data.id}"
+            }
+
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error updating video: {str(e)}"
+            }
+        
+        finally:
+            if client:
+                client.close()
 
     def delete_item(self, video : VideoData):
         try:
