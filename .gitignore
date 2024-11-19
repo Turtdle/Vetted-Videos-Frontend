@@ -5,3 +5,4 @@ vetted-videos/db_password
 vetted-videos/Dockerfile
 vetted-videos/web.Dockerfile
 vetted-videos/compose.yml
+deprecated/

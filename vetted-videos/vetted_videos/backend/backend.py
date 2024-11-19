@@ -103,11 +103,13 @@ class State(rx.State):
         if not self.CLIENT_ID:
             raise ValueError("CLIENT_ID environment variable not set")
         
-        self.emails_str = os.getenv('EMAILS', '')
-        if not self.emails_str:
-            raise ValueError("EMAIL environment variable not set")
-        self.emails = [str(email.strip()) for email in self.emails_str.split(',')] if self.emails_str else []
-        print(self.emails)
+        client = connect_to_mongodb()
+        db = client["Landing"]
+        collection = db["allowed_emails"]
+        documents = list(collection.find())
+        print(documents)
+        for doc in documents:
+            self.emails.append(str(doc.get('emails')))
         self.update_video_list()
         
     id_token_json: str = rx.LocalStorage()
