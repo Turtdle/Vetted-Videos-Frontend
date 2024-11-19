@@ -26,12 +26,13 @@ class VideoData(TypedDict):
     docid : str = ""
 
 def connect_to_mongodb():
-    """Connect to MongoDB cluster using connection string."""
+    """Connect to MongoDB cluster using connection string with password from environment variable."""
     try:
         connection_string = "mongodb+srv://sam:<db_password>@cluster0.vxwvl.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-        path = os.path.join(os.path.dirname(__file__), "..", "..", "db_password")
-        with open(path , "r") as f:
-            db_password = f.read().strip()
+        db_password = os.getenv('DB_PASSWORD')
+        if not db_password:
+            raise ValueError("DB_PASSWORD environment variable not set")
+            
         connection_string = connection_string.replace("<db_password>", db_password)
         client = MongoClient(connection_string)
         return client
@@ -91,15 +92,22 @@ def get_mongo_entries(
 
 class State(rx.State):
     videos: List[VideoData] = []
-    CLIENT_ID = ""
+    CLIENT_ID : str = ""
     video_to_update : VideoData = VideoData()
+    emails : List = []
+    emails_str : str = ""
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.CLIENT_ID = ""
-        client_id_path = os.path.join(os.path.dirname(__file__), "..", "..", "client_id")
-        if os.path.exists(client_id_path):
-            with open(client_id_path) as f:
-                self.CLIENT_ID = f.read().strip()
+        self.CLIENT_ID = os.getenv('CLIENT_ID', '')
+        self.emails = []
+        if not self.CLIENT_ID:
+            raise ValueError("CLIENT_ID environment variable not set")
+        
+        self.emails_str = os.getenv('EMAILS', '')
+        if not self.emails_str:
+            raise ValueError("EMAIL environment variable not set")
+        self.emails = [str(email.strip()) for email in self.emails_str.split(',')] if self.emails_str else []
+        print(self.emails)
         self.update_video_list()
         
     id_token_json: str = rx.LocalStorage()
@@ -108,8 +116,12 @@ class State(rx.State):
         return self.video_to_update
 
     def update_video_list(self):
-        self.videos = get_mongo_entries(client=connect_to_mongodb(), database_name='Landing', collection_name='user_videos')
-
+        fetched_videos = get_mongo_entries(
+            client=connect_to_mongodb(), 
+            database_name='Landing', 
+            collection_name='user_videos'
+        )
+        self.videos = [dict(video) for video in fetched_videos]
     def on_success(self, id_token: dict):
         self.id_token_json = json.dumps(id_token)
     
@@ -133,15 +145,13 @@ class State(rx.State):
 
     def logout(self):
         self.id_token_json = ""
-
     @rx.var
     def token_is_valid(self) -> bool:
         try:
             return bool(
                 self.tokeninfo
-                and int(self.tokeninfo.get("exp", 0))
-                > time.time()
-                and self.tokeninfo.get("email") == "sam@wanfamily.org"
+                and int(self.tokeninfo.get("exp", 0)) > time.time()
+                and self.tokeninfo.get("email") in self.emails
             )
         except Exception:
             return False

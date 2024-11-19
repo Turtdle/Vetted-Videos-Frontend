@@ -183,7 +183,7 @@ def _update_video_dialog(video: VideoData):
                             "Name",
                             "Item Name",
                             "text",
-                            "item_name",
+                            "item_name",    
                             "box",
                             str(video["videname"]),  # fuck
                         ),
