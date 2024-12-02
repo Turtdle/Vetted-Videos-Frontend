@@ -99,17 +99,11 @@ class State(rx.State):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.CLIENT_ID = os.getenv('CLIENT_ID', '')
-        self.emails = []
+        self.emails = []  # Initialize empty list
         if not self.CLIENT_ID:
             raise ValueError("CLIENT_ID environment variable not set")
         
-        client = connect_to_mongodb()
-        db = client["Landing"]
-        collection = db["allowed_emails"]
-        documents = list(collection.find())
-        print(documents)
-        for doc in documents:
-            self.emails.append(str(doc.get('emails')))
+        self.load_allowed_emails()  # Move email loading to separate method
         self.update_video_list()
         
     id_token_json: str = rx.LocalStorage()
@@ -149,13 +143,21 @@ class State(rx.State):
         self.id_token_json = ""
     @rx.var
     def token_is_valid(self) -> bool:
+        self.load_allowed_emails()  # Refresh emails list
         try:
-            return bool(
+            is_valid = bool(
                 self.tokeninfo
                 and int(self.tokeninfo.get("exp", 0)) > time.time()
                 and self.tokeninfo.get("email") in self.emails
             )
-        except Exception:
+            print("Token validation:", {  # Debug print
+                "email": self.tokeninfo.get("email"),
+                "allowed_emails": self.emails,
+                "is_valid": is_valid
+            })
+            return is_valid
+        except Exception as e:
+            print(f"Token validation error: {e}")
             return False
 
     def add_item(self, form_data : VideoData):
@@ -174,7 +176,19 @@ class State(rx.State):
             print(f"Error inserting document: {e}")
             return rx.toast.error(f"Error inserting document: {e}")
             return False
-    
+    def load_allowed_emails(self):
+        """Load allowed emails from MongoDB"""
+        self.emails = []  # Clear existing emails
+        client = connect_to_mongodb()
+        try:
+            db = client["Landing"]
+            collection = db["allowed_emails"]
+            documents = list(collection.find())
+            self.emails = [str(doc.get('emails')) for doc in documents]
+            print("Loaded allowed emails:", self.emails)  # Debug print
+        finally:
+            if client:
+                client.close()
     def update_item(self, form_data: VideoData):
         """
         Updates a video document in MongoDB based on the provided VideoData.
@@ -192,17 +206,18 @@ class State(rx.State):
             db = client[db_name]
             collection = db[collection_name]
 
-            filter_query = {"_id": form_data.id}
-
+            filter_query = {"videoname": self.video_to_update['videoname']}
+            tags_split : List = form_data['tags'].split(',')
+            form_data['tags'] = tags_split
+            for item in form_data:
+                
+                if form_data[item] == "":
+                    if item == "tags":
+                        form_data[item] = ','.join(self.video_to_update[item])
+                    else:
+                        form_data[item] = self.video_to_update[item]
             update_data = {
-                "$set": {
-                    "title": form_data.title,
-                    "description": form_data.description,
-                    "url": form_data.url,
-                    "category": form_data.category,
-                    "tags": form_data.tags,
-                    "updated_at": datetime.utcnow()
-                }
+                "$set": form_data
             }
 
             result = collection.update_one(
@@ -211,29 +226,20 @@ class State(rx.State):
             )
 
             if result.matched_count == 0:
-                return {
-                    "success": False,
-                    "message": f"No video found with id {form_data.id}"
-                }
+                return rx.toast.error(f"No video found with name {form_data['videname']}")
+                
 
             if result.modified_count == 0:
-                return {
-                    "success": True,
-                    "message": "Document found but no changes were needed"
-                }
+                return rx.toast.warning(f"Document found but no changes were needed")
 
-            return {
-                "success": True,
-                "message": f"Successfully updated video with id {form_data.id}"
-            }
+            return rx.toast.success(f"Successfully updated video")
 
         except Exception as e:
-            return {
-                "success": False,
-                "message": f"Error updating video: {str(e)}"
-            }
+            return rx.toast.error(f"Error updating video: {str(e)}")
+
         
         finally:
+            self.update_video_list()
             if client:
                 client.close()
 

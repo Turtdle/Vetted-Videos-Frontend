@@ -178,14 +178,52 @@ def _update_video_dialog(video: VideoData):
             ),
             rx.form.root(
                 rx.flex(
-                    rx.hstack(
+                    rx.vstack(
                         form_field(
-                            "Name",
-                            "Item Name",
+                            "Username",
+                            "Username",
                             "text",
-                            "item_name",    
+                            "username",
                             "box",
-                            str(video["videname"]),  # fuck
+                        ),
+                        form_field(
+                            "Video Name",
+                            "Video Name",
+                            "text",
+                            "videoname",
+                            "box",
+                        ),
+                        form_field(
+                            "Length",
+                            "Length",
+                            "text",
+                            "length",
+                            "box",
+                        ),form_field(
+                            "Thumbnail",
+                            "URL",
+                            "text",
+                            "thumbnail",
+                            "box",
+                        ),
+                        form_field(
+                            "Product Name",
+                            "Product Name",
+                            "text",
+                            "product",
+                            "box",
+                        ),form_field(
+                            "Video",
+                            "Link",
+                            "text",
+                            "link",
+                            "box",
+                        ),form_field(
+                            "Tags",
+                            "Seperate tags by commas",
+                            "text",
+                            "tags",
+                            "box",
                         ),
                         spacing="3",
                         width="100%",
